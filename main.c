@@ -1,6 +1,8 @@
 #include <stdbool.h>
 #include <stddef.h>
+#include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <time.h>
 
 #include <gtk/gtk.h>
@@ -10,6 +12,19 @@
 #define TRAY_ICON                                                              \
   "/home/yongsheng/repos/runcat-tray/icons/cat/my-sleeping-symbolic.svg"
 #define LEN(arr) ((int)(sizeof(arr) / sizeof(arr)[0]))
+#define PROC_STAT "/proc/stat"
+
+typedef struct {
+  /* see:
+   * https://unix.stackexchange.com/questions/123908/how-to-get-cpu-percentage-as-a-counter
+   */
+  uint64_t total_a;
+  uint64_t total_b;
+  int num_cores;
+  double percent;
+} cpu_usage_t;
+
+cpu_usage_t CPU_USAGE = {0};
 
 /* timer counter, to choose which frame to show */
 uint64_t COUNTER = 0;
@@ -34,32 +49,74 @@ static char *FRAMES[] = {
     "/home/yongsheng/repos/runcat-tray/icons/cat/my-running-4-symbolic.svg",
 };
 
-static int get_time_per_frame() {
-  // TODO: parse CPU usage
-  int percent = rand() % (100 + 1);
-  double diff = FPS_DELTA * percent;
-  double time = (double)FPS_30 + diff;
-  return (int)time;
+/* global, avoid to pass around by now */
+GtkWidget *root, *item_cpu, *item_quit;
+AppIndicator *indicator;
+GError *error = NULL;
+
+static gboolean get_cpu_usage() {
+  FILE *fd = fopen(PROC_STAT, "r");
+  if (fd == NULL) {
+    g_print("failed to open %s\n", PROC_STAT);
+    return false;
+  }
+
+  char *line = NULL;
+  size_t len = 0;
+
+  int row = 0;
+  uint64_t total = 0;
+  while (getline(&line, &len, fd) != -1) {
+    if (strncmp(line, "cpu", 3) == 0) {
+      if (row == 0) {
+        /* example: cpu  2350865 48 1271510 154132720 73802 20 68979 0 0 0 */
+        /* sum the col1 col2 col3 */
+        char *token = strtok(line, " ");
+        int pos = 0;
+        while (token) {
+          if (pos >= 1 && pos <= 3) {
+            total += atoi(token);
+          }
+          token = strtok(NULL, " ");
+          pos++;
+        }
+      }
+      row++;
+    }
+  }
+
+  /* update cpu usage */
+  CPU_USAGE.num_cores = row;
+  CPU_USAGE.total_a = CPU_USAGE.total_b;
+  CPU_USAGE.total_b = total;
+  if (CPU_USAGE.total_b != 0 && CPU_USAGE.total_a != 0) {
+    CPU_USAGE.percent =
+        ((double)CPU_USAGE.total_b - (double)CPU_USAGE.total_a) / 5.0 /
+        (double)SAMPLE_RATE / (double)CPU_USAGE.num_cores * 100;
+
+    /* update label */
+    char label[16] = {0};
+    sprintf(label, "cpu: %.2lf%%", CPU_USAGE.percent);
+    gtk_menu_item_set_label((GtkMenuItem *)item_cpu, label);
+  }
+
+  fclose(fd);
+  return true;
 }
 
 /* timer callback, will change fps by cpu usage each time */
 static gboolean tray_icon_update(gpointer data) {
-  AppIndicator *indicator = data;
-
   app_indicator_set_icon(indicator, FRAMES[COUNTER++ % LEN(FRAMES)]);
 
-  g_timeout_add(get_time_per_frame(), tray_icon_update, indicator);
+  double diff = FPS_DELTA * CPU_USAGE.percent;
+  double time = (double)FPS_4 - diff;
+  g_timeout_add((int)time, tray_icon_update, NULL);
 
   return false;
 }
 
 int main(int argc, char **argv) {
   srand(time(0));
-
-  GtkWidget *root, *item_cpu, *item_quit;
-
-  AppIndicator *indicator;
-  GError *error = NULL;
 
   gtk_init(&argc, &argv);
 
@@ -81,9 +138,9 @@ int main(int argc, char **argv) {
   app_indicator_set_menu(indicator, GTK_MENU(root));
   gtk_widget_show_all(root);
 
-  g_timeout_add(FPS_4, tray_icon_update, indicator);
+  g_timeout_add(FPS_4, tray_icon_update, NULL);
 
-  // TODO: parse CPU usage, store and display
+  g_timeout_add_seconds(5, get_cpu_usage, NULL);
 
   gtk_main();
 
