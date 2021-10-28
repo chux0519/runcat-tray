@@ -4,6 +4,8 @@
 
 Is a runcat port for Linux using libappindicator.
 
+icons from: https://github.com/win0err/gnome-runcat
+
 ## requirements
 
 - libappindicator-gtk3
