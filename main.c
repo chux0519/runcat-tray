@@ -9,12 +9,24 @@
 #define TRAY_APPINDICATOR_ID "runcat-applet"
 #define TRAY_ICON                                                              \
   "/home/yongsheng/repos/runcat-tray/icons/cat/my-sleeping-symbolic.svg"
+#define LEN(arr) ((int)(sizeof(arr) / sizeof(arr)[0]))
 
+/* timer counter, to choose which frame to show */
 uint64_t COUNTER = 0;
-int FPS_60 = 33;
-int FPS_4 = 250;
 
-static char *frames[] = {
+/* fps range is [3, 30] */
+int FPS_30 = 33;
+int FPS_4 = 250;
+/* ((double)FPS_4 - (double)FPS_30) / 100.0 */
+double FPS_DELTA = 2.17;
+
+/* sample rate is (always) 100HZ, check sysconf(_SC_CLK_TCK), no need to be
+ * higher */
+int SAMPLE_RATE = 100;
+
+/* icons from: https://github.com/win0err/gnome-runcat/tree/master/src/icons/cat
+ */
+static char *FRAMES[] = {
     "/home/yongsheng/repos/runcat-tray/icons/cat/my-running-0-symbolic.svg",
     "/home/yongsheng/repos/runcat-tray/icons/cat/my-running-1-symbolic.svg",
     "/home/yongsheng/repos/runcat-tray/icons/cat/my-running-2-symbolic.svg",
@@ -22,19 +34,19 @@ static char *frames[] = {
     "/home/yongsheng/repos/runcat-tray/icons/cat/my-running-4-symbolic.svg",
 };
 
-static void button_clicked(GtkWidget *widget, gpointer data) {
-  g_print("clicked\n");
-}
-
 static int get_time_per_frame() {
-  // TODO: parse CPU usage and calculate
-  return (rand() % (FPS_4 - FPS_60 + 1)) + FPS_60;
+  // TODO: parse CPU usage
+  int percent = rand() % (100 + 1);
+  double diff = FPS_DELTA * percent;
+  double time = (double)FPS_30 + diff;
+  return (int)time;
 }
 
+/* timer callback, will change fps by cpu usage each time */
 static gboolean tray_icon_update(gpointer data) {
   AppIndicator *indicator = data;
 
-  app_indicator_set_icon(indicator, frames[COUNTER++ % 5]);
+  app_indicator_set_icon(indicator, FRAMES[COUNTER++ % LEN(FRAMES)]);
 
   g_timeout_add(get_time_per_frame(), tray_icon_update, indicator);
 
@@ -51,16 +63,13 @@ int main(int argc, char **argv) {
 
   gtk_init(&argc, &argv);
 
-  /* Indicator */
   indicator = app_indicator_new(TRAY_APPINDICATOR_ID, TRAY_ICON,
                                 APP_INDICATOR_CATEGORY_APPLICATION_STATUS);
   app_indicator_set_status(indicator, APP_INDICATOR_STATUS_ACTIVE);
 
   root = gtk_menu_new();
 
-  // TODO: parse CPU usage and display
   item_cpu = gtk_menu_item_new_with_label("cpu");
-  g_signal_connect(item_cpu, "activate", G_CALLBACK(button_clicked), NULL);
 
   item_quit = gtk_menu_item_new_with_label("quit");
   g_signal_connect(item_quit, "activate", G_CALLBACK(gtk_main_quit), NULL);
@@ -72,7 +81,9 @@ int main(int argc, char **argv) {
   app_indicator_set_menu(indicator, GTK_MENU(root));
   gtk_widget_show_all(root);
 
-  g_timeout_add(250, tray_icon_update, indicator);
+  g_timeout_add(FPS_4, tray_icon_update, indicator);
+
+  // TODO: parse CPU usage, store and display
 
   gtk_main();
 
