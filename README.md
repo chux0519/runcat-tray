@@ -1,3 +1,5 @@
+<img src="runcat.gif" width="150" align="left" />
+
 # runcat-tray
 
 Is a runcat port for Linux using libappindicator.
