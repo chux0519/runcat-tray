@@ -9,8 +9,7 @@
 #include <libappindicator/app-indicator.h>
 
 #define TRAY_APPINDICATOR_ID "runcat-applet"
-#define TRAY_ICON                                                              \
-  "/home/yongsheng/repos/runcat-tray/icons/cat/my-sleeping-symbolic.svg"
+#define TRAY_ICON "/usr/local/share/runcat/icons/cat/my-sleeping-symbolic.svg"
 #define LEN(arr) ((int)(sizeof(arr) / sizeof(arr)[0]))
 #define PROC_STAT "/proc/stat"
 
@@ -42,11 +41,11 @@ int SAMPLE_RATE = 100;
 /* icons from: https://github.com/win0err/gnome-runcat/tree/master/src/icons/cat
  */
 static char *FRAMES[] = {
-    "/home/yongsheng/repos/runcat-tray/icons/cat/my-running-0-symbolic.svg",
-    "/home/yongsheng/repos/runcat-tray/icons/cat/my-running-1-symbolic.svg",
-    "/home/yongsheng/repos/runcat-tray/icons/cat/my-running-2-symbolic.svg",
-    "/home/yongsheng/repos/runcat-tray/icons/cat/my-running-3-symbolic.svg",
-    "/home/yongsheng/repos/runcat-tray/icons/cat/my-running-4-symbolic.svg",
+    "/usr/local/share/runcat/icons/cat/my-running-0-symbolic.svg",
+    "/usr/local/share/runcat/icons/cat/my-running-1-symbolic.svg",
+    "/usr/local/share/runcat/icons/cat/my-running-2-symbolic.svg",
+    "/usr/local/share/runcat/icons/cat/my-running-3-symbolic.svg",
+    "/usr/local/share/runcat/icons/cat/my-running-4-symbolic.svg",
 };
 
 /* global, avoid to pass around by now */
