@@ -90,7 +90,7 @@ static gboolean get_cpu_usage() {
   CPU_USAGE.total_b = total;
   if (CPU_USAGE.total_b != 0 && CPU_USAGE.total_a != 0) {
     CPU_USAGE.percent =
-        ((double)CPU_USAGE.total_b - (double)CPU_USAGE.total_a) / 5.0 /
+        ((double)CPU_USAGE.total_b - (double)CPU_USAGE.total_a) / 1.0 /
         (double)SAMPLE_RATE / (double)CPU_USAGE.num_cores * 100;
 
     /* update label */
@@ -139,7 +139,7 @@ int main(int argc, char **argv) {
 
   g_timeout_add(FPS_4, tray_icon_update, NULL);
 
-  g_timeout_add_seconds(5, get_cpu_usage, NULL);
+  g_timeout_add_seconds(1, get_cpu_usage, NULL);
 
   gtk_main();
 
