@@ -13,7 +13,9 @@ icons from: https://github.com/win0err/gnome-runcat
 ## build
 
 > mkdir build && cd build
+> 
 > cmake .. && make
+> 
 > make install
 
 ## start
