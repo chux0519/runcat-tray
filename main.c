@@ -8,8 +8,14 @@
 #include <gtk/gtk.h>
 #include <libappindicator/app-indicator.h>
 
+#include "config.h"
+
+/* sample rate is (always) 100HZ, check sysconf(_SC_CLK_TCK), no need to be
+ * higher */
+#define SAMPLE_RATE 100.0
+#define FPS_DELTA                                                              \
+  (((1000.0 / (double)FPS_L) - (1000.0 / (double)FPS_H)) / SAMPLE_RATE)
 #define TRAY_APPINDICATOR_ID "runcat-applet"
-#define TRAY_ICON "/usr/local/share/runcat/icons/cat/my-sleeping-symbolic.svg"
 #define LEN(arr) ((int)(sizeof(arr) / sizeof(arr)[0]))
 #define PROC_STAT "/proc/stat"
 
@@ -27,26 +33,6 @@ cpu_usage_t CPU_USAGE = {0};
 
 /* timer counter, to choose which frame to show */
 uint64_t COUNTER = 0;
-
-/* fps range is [3, 30] */
-int FPS_30 = 33;
-int FPS_4 = 250;
-/* ((double)FPS_4 - (double)FPS_30) / 100.0 */
-double FPS_DELTA = 2.17;
-
-/* sample rate is (always) 100HZ, check sysconf(_SC_CLK_TCK), no need to be
- * higher */
-int SAMPLE_RATE = 100;
-
-/* icons from: https://github.com/win0err/gnome-runcat/tree/master/src/icons/cat
- */
-static char *FRAMES[] = {
-    "/usr/local/share/runcat/icons/cat/my-running-0-symbolic.svg",
-    "/usr/local/share/runcat/icons/cat/my-running-1-symbolic.svg",
-    "/usr/local/share/runcat/icons/cat/my-running-2-symbolic.svg",
-    "/usr/local/share/runcat/icons/cat/my-running-3-symbolic.svg",
-    "/usr/local/share/runcat/icons/cat/my-running-4-symbolic.svg",
-};
 
 /* global, avoid to pass around by now */
 GtkWidget *root, *item_cpu, *item_quit;
@@ -108,7 +94,7 @@ static gboolean tray_icon_update(gpointer data) {
   app_indicator_set_icon(indicator, FRAMES[COUNTER++ % LEN(FRAMES)]);
 
   double diff = FPS_DELTA * CPU_USAGE.percent;
-  double time = (double)FPS_4 - diff;
+  double time = (1000 / (double)FPS_L - diff);
   g_timeout_add((int)time, tray_icon_update, NULL);
 
   return false;
@@ -119,7 +105,7 @@ int main(int argc, char **argv) {
 
   gtk_init(&argc, &argv);
 
-  indicator = app_indicator_new(TRAY_APPINDICATOR_ID, TRAY_ICON,
+  indicator = app_indicator_new(TRAY_APPINDICATOR_ID, FRAMES[0],
                                 APP_INDICATOR_CATEGORY_APPLICATION_STATUS);
   app_indicator_set_status(indicator, APP_INDICATOR_STATUS_ACTIVE);
 
@@ -137,7 +123,7 @@ int main(int argc, char **argv) {
   app_indicator_set_menu(indicator, GTK_MENU(root));
   gtk_widget_show_all(root);
 
-  g_timeout_add(FPS_4, tray_icon_update, NULL);
+  g_timeout_add(1.0 / (double)FPS_L, tray_icon_update, NULL);
 
   g_timeout_add_seconds(1, get_cpu_usage, NULL);
 
