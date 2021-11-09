@@ -1,3 +1,5 @@
+#include <dirent.h>
+#include <pwd.h>
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdio.h>
@@ -8,7 +10,16 @@
 #include <gtk/gtk.h>
 #include <libappindicator/app-indicator.h>
 
-#include "config.h"
+static int FPS_H = 30;
+static int FPS_L = 10;
+
+static char FRAMES_DIR[1024] = {};
+/* no more than 30 frames */
+static char FRAMES[30][256] = {};
+static int FRAMES_COUNT = 0;
+
+/* current frame, in full path */
+static char FRAME_NOW[1024] = {};
 
 /* sample rate is (always) 100HZ, check sysconf(_SC_CLK_TCK), no need to be
  * higher */
@@ -16,7 +27,6 @@
 #define FPS_DELTA                                                              \
   (((1000.0 / (double)FPS_L) - (1000.0 / (double)FPS_H)) / SAMPLE_RATE)
 #define TRAY_APPINDICATOR_ID "runcat-applet"
-#define LEN(arr) ((int)(sizeof(arr) / sizeof(arr)[0]))
 #define PROC_STAT "/proc/stat"
 
 typedef struct {
@@ -91,7 +101,11 @@ static gboolean get_cpu_usage() {
 
 /* timer callback, will change fps by cpu usage each time */
 static gboolean tray_icon_update(gpointer data) {
-  app_indicator_set_icon(indicator, FRAMES[COUNTER++ % LEN(FRAMES)]);
+  strcpy(FRAME_NOW, FRAMES_DIR);
+  strcat(FRAME_NOW, "/");
+  strcat(FRAME_NOW, FRAMES[COUNTER++ % FRAMES_COUNT]);
+
+  app_indicator_set_icon(indicator, FRAME_NOW);
 
   double diff = FPS_DELTA * CPU_USAGE.percent;
   double time = (1000 / (double)FPS_L - diff);
@@ -100,7 +114,78 @@ static gboolean tray_icon_update(gpointer data) {
   return false;
 }
 
+static void init_frames() {
+  struct dirent *de;
+  DIR *dir;
+
+  if (strlen(FRAMES_DIR) == 0) {
+    const char *home;
+    if ((home = getenv("HOME")) == NULL) {
+      home = getpwuid(getuid())->pw_dir;
+    }
+    strcpy(FRAMES_DIR, home);
+    strcat(FRAMES_DIR, "/.config/runcat/icons/cat");
+  }
+
+  dir = opendir(FRAMES_DIR);
+  if (dir == NULL) {
+    printf("Cannot open directory '%s'\n", FRAMES_DIR);
+    exit(-1);
+  }
+
+  FRAMES_COUNT = 0;
+  while ((de = readdir(dir)) != NULL) {
+    if (strcmp(de->d_name, ".") == 0 || strcmp(de->d_name, "..") == 0) {
+      continue;
+    }
+    strcpy(FRAMES[FRAMES_COUNT++], de->d_name);
+  }
+
+  /* sort in aplhabetical order */
+  for (int i = 0; i < FRAMES_COUNT; i++) {
+    for (int j = i + 1; j < FRAMES_COUNT; j++) {
+      if (strcmp(FRAMES[i], FRAMES[j]) > 0) {
+        char temp[25];
+        strcpy(temp, FRAMES[i]);
+        strcpy(FRAMES[i], FRAMES[j]);
+        strcpy(FRAMES[j], temp);
+      }
+    }
+  }
+
+  closedir(dir);
+}
+
 int main(int argc, char **argv) {
+  int opt = 0;
+  while ((opt = getopt(argc, argv, "hl:u:d:")) != -1) {
+    switch (opt) {
+    case 'h':
+      printf("Usage: runcat -l $min_fps -u $max_fps -d "
+             "/path/to/icons/root \n");
+      printf("\n");
+      printf("-l: lower bound of fps, default to 6.\n");
+      printf("-h: upper bound of fps, default to 90.\n");
+      printf("-d: root of your animated icons, by default, use %s.\n",
+             FRAMES_DIR);
+      return 0;
+    case 'l':
+      FPS_L = atoi(optarg);
+      break;
+    case 'u':
+      FPS_H = atoi(optarg);
+      break;
+    case 'd':
+      strcpy(FRAMES_DIR, optarg);
+    }
+  }
+  if (FPS_H < FPS_L) {
+    printf("invalid fps range");
+    return -1;
+  }
+
+  init_frames();
+
   srand(time(0));
 
   gtk_init(&argc, &argv);
