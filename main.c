@@ -21,6 +21,11 @@ static int FRAMES_COUNT = 0;
 /* current frame, in full path */
 static char FRAME_NOW[1024] = {};
 
+static char *MODES[256] = {"cat", "dab", "mona", "partyblobcat"};
+static int MODE = 0;
+
+static void init_frames();
+
 /* sample rate is (always) 100HZ, check sysconf(_SC_CLK_TCK), no need to be
  * higher */
 #define SAMPLE_RATE 100.0
@@ -45,7 +50,7 @@ cpu_usage_t CPU_USAGE = {0};
 uint64_t COUNTER = 0;
 
 /* global, avoid to pass around by now */
-GtkWidget *root, *item_cpu, *item_quit;
+GtkWidget *root, *item_cpu, *item_quit, *item_mode_menu;
 AppIndicator *indicator;
 GError *error = NULL;
 
@@ -114,6 +119,19 @@ static gboolean tray_icon_update(gpointer data) {
   return false;
 }
 
+static void on_mode_change(GtkWidget *_, const char *mode) {
+  for (int i = 0; i < 4; ++i) {
+    if (strcmp(MODES[i], mode) == 0) {
+      MODE = i;
+      break;
+    }
+  }
+
+  char clear[1024] = {};
+  memcpy(FRAMES_DIR, clear, 1024);
+  init_frames();
+}
+
 static void init_frames() {
   struct dirent *de;
   DIR *dir;
@@ -124,7 +142,8 @@ static void init_frames() {
       home = getpwuid(getuid())->pw_dir;
     }
     strcpy(FRAMES_DIR, home);
-    strcat(FRAMES_DIR, "/.config/runcat/icons/cat");
+    strcat(FRAMES_DIR, "/.config/runcat/icons/");
+    strcat(FRAMES_DIR, MODES[MODE]);
   }
 
   dir = opendir(FRAMES_DIR);
@@ -157,8 +176,10 @@ static void init_frames() {
 }
 
 int main(int argc, char **argv) {
+  /* load assets */
   init_frames();
 
+  /* parse flags */
   int opt = 0;
   while ((opt = getopt(argc, argv, "hl:u:d:")) != -1) {
     switch (opt) {
@@ -186,6 +207,7 @@ int main(int argc, char **argv) {
     return -1;
   }
 
+  /* init rands and ui */
   srand(time(0));
 
   gtk_init(&argc, &argv);
@@ -196,22 +218,44 @@ int main(int argc, char **argv) {
 
   root = gtk_menu_new();
 
+  /* mode submenu */
+  item_mode_menu = gtk_menu_item_new_with_label("mode");
+  GtkWidget *menu_mode = gtk_menu_new();
+  for (int i = 0; i < 4; ++i) {
+    GtkWidget *item = gtk_check_menu_item_new_with_label(MODES[i]);
+    gtk_check_menu_item_set_active(GTK_CHECK_MENU_ITEM(item), i == MODE);
+    gtk_menu_shell_append(GTK_MENU_SHELL(menu_mode), item);
+
+    g_signal_connect(item, "activate", G_CALLBACK(on_mode_change), MODES[i]);
+  }
+  gtk_menu_item_set_submenu(GTK_MENU_ITEM(item_mode_menu), menu_mode);
+
+  /* cpu info */
   item_cpu = gtk_menu_item_new_with_label("cpu");
 
+  /* quit button */
   item_quit = gtk_menu_item_new_with_label("quit");
   g_signal_connect(item_quit, "activate", G_CALLBACK(gtk_main_quit), NULL);
 
-  gtk_menu_shell_insert(GTK_MENU_SHELL(root), item_cpu, 0);
+  /* add widgets to root */
+  gtk_menu_shell_append(GTK_MENU_SHELL(root), item_mode_menu);
 
-  gtk_menu_shell_insert(GTK_MENU_SHELL(root), item_quit, 1);
+  GtkWidget *sperator = gtk_separator_menu_item_new();
+
+  gtk_menu_shell_append(GTK_MENU_SHELL(root), sperator);
+  gtk_menu_shell_append(GTK_MENU_SHELL(root), item_cpu);
+  gtk_menu_shell_append(GTK_MENU_SHELL(root), item_quit);
 
   app_indicator_set_menu(indicator, GTK_MENU(root));
   gtk_widget_show_all(root);
 
+  /* timer for updating ui */
   g_timeout_add(1.0 / (double)FPS_L, tray_icon_update, NULL);
 
+  /* timer for updating cpu usage */
   g_timeout_add_seconds(1, get_cpu_usage, NULL);
 
+  /* loop here */
   gtk_main();
 
   return 0;
