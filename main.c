@@ -10,8 +10,8 @@
 #include <gtk/gtk.h>
 #include <libappindicator/app-indicator.h>
 
-static int FPS_H = 30;
-static int FPS_L = 10;
+static int FPS_H = 90;
+static int FPS_L = 6;
 
 static char FRAMES_DIR[1024] = {};
 /* no more than 30 frames */
@@ -157,6 +157,8 @@ static void init_frames() {
 }
 
 int main(int argc, char **argv) {
+  init_frames();
+
   int opt = 0;
   while ((opt = getopt(argc, argv, "hl:u:d:")) != -1) {
     switch (opt) {
@@ -166,7 +168,7 @@ int main(int argc, char **argv) {
       printf("\n");
       printf("-l: lower bound of fps, default to 6.\n");
       printf("-h: upper bound of fps, default to 90.\n");
-      printf("-d: root of your animated icons, by default, use %s.\n",
+      printf("-d: root of your animated icons, by default, use `%s`.\n",
              FRAMES_DIR);
       return 0;
     case 'l':
@@ -183,8 +185,6 @@ int main(int argc, char **argv) {
     printf("invalid fps range");
     return -1;
   }
-
-  init_frames();
 
   srand(time(0));
 
