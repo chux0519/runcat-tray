@@ -221,11 +221,16 @@ int main(int argc, char **argv) {
   /* mode submenu */
   item_mode_menu = gtk_menu_item_new_with_label("mode");
   GtkWidget *menu_mode = gtk_menu_new();
-  for (int i = 0; i < 4; ++i) {
-    GtkWidget *item = gtk_check_menu_item_new_with_label(MODES[i]);
-    gtk_check_menu_item_set_active(GTK_CHECK_MENU_ITEM(item), i == MODE);
+  GtkWidget *item = gtk_radio_menu_item_new_with_label(NULL, MODES[0]);
+  GtkWidget *last_item = item;
+  gtk_check_menu_item_set_active(GTK_RADIO_MENU_ITEM(item), 0 == MODE);
+  gtk_menu_shell_append(GTK_MENU_SHELL(menu_mode), item);
+  g_signal_connect(item, "activate", G_CALLBACK(on_mode_change), MODES[0]);
+  for (int i = 1; i < 4; ++i) {
+    GtkWidget *item = gtk_radio_menu_item_new_with_label_from_widget(GTK_RADIO_MENU_ITEM(last_item), MODES[i]);
+    last_item = item;
+    gtk_check_menu_item_set_active(GTK_RADIO_MENU_ITEM(item), i == MODE);
     gtk_menu_shell_append(GTK_MENU_SHELL(menu_mode), item);
-
     g_signal_connect(item, "activate", G_CALLBACK(on_mode_change), MODES[i]);
   }
   gtk_menu_item_set_submenu(GTK_MENU_ITEM(item_mode_menu), menu_mode);
