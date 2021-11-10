@@ -86,7 +86,7 @@ static gboolean get_cpu_usage() {
   }
 
   /* update cpu usage */
-  CPU_USAGE.num_cores = row;
+  CPU_USAGE.num_cores = row - 1;
   CPU_USAGE.total_a = CPU_USAGE.total_b;
   CPU_USAGE.total_b = total;
   if (CPU_USAGE.total_b != 0 && CPU_USAGE.total_a != 0) {
@@ -100,6 +100,7 @@ static gboolean get_cpu_usage() {
     gtk_menu_item_set_label((GtkMenuItem *)item_cpu, label);
   }
 
+  free(line);
   fclose(fd);
   return true;
 }
