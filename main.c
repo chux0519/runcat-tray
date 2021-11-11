@@ -165,7 +165,7 @@ static void init_frames() {
   for (int i = 0; i < FRAMES_COUNT; i++) {
     for (int j = i + 1; j < FRAMES_COUNT; j++) {
       if (strcmp(FRAMES[i], FRAMES[j]) > 0) {
-        char temp[25];
+        char temp[256];
         strcpy(temp, FRAMES[i]);
         strcpy(FRAMES[i], FRAMES[j]);
         strcpy(FRAMES[j], temp);
