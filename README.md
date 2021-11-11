@@ -25,7 +25,7 @@ It will install all default icons to your `~/.config/runcat/icons`, optionally, 
 > runcat
 
 
-there're several flags can use
+There're several flags to use:
 
 - `-l` to set the lower bound of FPS, default to 6
 - `-u` to set the upper bound of FPS, default to 90
