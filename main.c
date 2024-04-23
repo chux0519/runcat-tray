@@ -6,6 +6,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
+#include <libgen.h>
 
 #include <gtk/gtk.h>
 #include <libappindicator/app-indicator.h>
@@ -120,7 +121,9 @@ static gboolean tray_icon_update(gpointer data) {
   return false;
 }
 
-static void on_mode_change(GtkWidget *_, const char *mode) {
+static void on_mode_change(GtkRadioMenuItem *item, const char *mode) {
+  gboolean active = gtk_check_menu_item_get_active(GTK_CHECK_MENU_ITEM(item));
+  if(!active) return;
   for (int i = 0; i < 4; ++i) {
     if (strcmp(MODES[i], mode) == 0) {
       MODE = i;
@@ -201,6 +204,18 @@ int main(int argc, char **argv) {
       break;
     case 'd':
       strcpy(FRAMES_DIR, optarg);
+
+      char *parsed_mode = basename(FRAMES_DIR);
+      // find index
+      int i = 3;
+      for(; i >= 0; i--) {
+      	if(strcmp(parsed_mode, MODES[i]) == 0) {
+      		break;
+      	}
+      }
+      MODE = i;
+      
+      init_frames();
     }
   }
   if (FPS_H < FPS_L) {
@@ -222,9 +237,13 @@ int main(int argc, char **argv) {
   /* mode submenu */
   item_mode_menu = gtk_menu_item_new_with_label("mode");
   GtkWidget *menu_mode = gtk_menu_new();
+  GSList *group = NULL;
   for (int i = 0; i < 4; ++i) {
-    GtkWidget *item = gtk_check_menu_item_new_with_label(MODES[i]);
-    gtk_check_menu_item_set_active(GTK_CHECK_MENU_ITEM(item), i == MODE);
+    GtkWidget *item = gtk_radio_menu_item_new_with_label(group, MODES[i]);
+    group = gtk_radio_menu_item_get_group(GTK_RADIO_MENU_ITEM(item));
+    if(i == MODE) {
+    	gtk_check_menu_item_set_active(GTK_CHECK_MENU_ITEM(item), true);
+    }
     gtk_menu_shell_append(GTK_MENU_SHELL(menu_mode), item);
 
     g_signal_connect(item, "activate", G_CALLBACK(on_mode_change), MODES[i]);
